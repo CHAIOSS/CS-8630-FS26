@@ -1,6 +1,6 @@
 # Assignment 1: The Perceptual Evidence Brief
 
-**Unit:** Principles Governing Perception | **Due:** Friday, Week 2 | **AI Tier 2** | Individual
+**Unit:** Principles Governing Perception | **Due:** Monday, Week 2 | **AI Tier 2** | Individual
 
 ## Read & Write
 
