@@ -6,6 +6,8 @@
 
 Read Franconeri et al. (2021), *The Science of Visual Data Communication: What Works*, and the assigned Cleveland chapters (*The Elements of Graphing Data*).
 
+**You will be responsible for being prepared to discuss these readings in depth during class week 2. This is a graduate seminar, and we will all participate.**
+
 Write a **1,200-word evidence brief** on two perceptual claims that working analysts rely on daily — choose from: position-along-common-scale beats angle/area judgments; alignment enables comparison; color hue fails for ordered data; animation impairs comparison; 3D depth cues distort magnitude judgments. For each claim: (a) state it precisely, (b) trace the empirical support through Franconeri et al. and Cleveland — what was actually measured, on whom, with what stimuli, (c) state its boundary conditions — where the claim weakens or reverses, and (d) give one real-world chart type the claim indicts, and one it endorses.
 
 This is an evidence brief, not an opinion piece: every claim cites a specific finding, and "everyone knows pie charts are bad" earns nothing without the measurement behind it.
