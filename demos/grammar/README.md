@@ -22,3 +22,8 @@ Each script opens **one window that builds a visual explanation**: the spec grow
 Shared dataset: a constructed per-PR table for four repos over 24 months
 (`_grammar.prs()`), shaped like Augur data. Requirements: plotnine, altair,
 vl-convert-python, pandas, numpy, matplotlib.
+
+
+## `plain/` — the readable versions
+
+Eight pure-plotnine files, one grammar component each, no presentation machinery. Read them in order; they are the Assignment 2 starting point. See `plain/README.md`.
