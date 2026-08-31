@@ -1,6 +1,6 @@
 # Assignment 2: One Dataset, Ten Specifications
 
-**Unit:** Grammar of Graphics | **Due:** Monday, Week 4 | **AI Tier 2 + one Tier-1 exercise** | Individual
+**Unit:** Grammar of Graphics | **Due:** Sunday, Week 4 | **AI Tier 2 + one Tier-1 exercise** | Individual
 
 ## Watch
 
