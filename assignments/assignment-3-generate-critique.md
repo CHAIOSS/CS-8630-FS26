@@ -1,7 +1,7 @@
 # Assignment 3: Generate–Critique–Repair
 
 **CS 8630 — Data Visualization | AI-Use Tier 1 (AI use required and under study)**
-**Due:** Friday, Week 4, 11:59 p.m. | **Weight:** see syllabus | **Individual work**
+**Due:** September 20, Week 4, 11:59 p.m. | **Weight:** see syllabus | **Individual work**
 
 ## Why this assignment exists
 
