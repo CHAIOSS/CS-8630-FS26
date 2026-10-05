@@ -1,6 +1,7 @@
 # Temporal demos — Unit 4b
 
-Four build-an-explanation canvases (any key in the figure window advances; `--save DIR` runs headless). No dependencies beyond the course base
+Four build-an-explanation canvases (→/space forward, ← back, home/end jump, q closes;
+`--save DIR` runs headless). No dependencies beyond the course base
 (matplotlib, numpy, pandas; Builder comes from ../grammar).
 
 | Script | Key concepts |

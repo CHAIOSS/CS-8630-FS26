@@ -68,6 +68,15 @@ def say(title, points):
         input("\n  [Enter to close the last figure and finish] ")
         plt.close("all")
 
+def annot(ax, xy, text, dxy=(0.9, 0.7), color=None, fs=9.5):
+    """Arrowed callout for in-figure annotation."""
+    c = color or ACCENT
+    ax.annotate(text, xy=xy, xytext=(xy[0] + dxy[0], xy[1] + dxy[1]),
+                fontsize=fs, color=c, fontweight="bold",
+                arrowprops=dict(arrowstyle="->", color=c, lw=1.6),
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec=c, lw=1.0, alpha=0.92))
+
+
 def polar_fallback(values, labels, theta, title, name, colors=None):
     """plotnine has no coord_polar (an embedding gap — Wickham §5). Render the
     polar step with matplotlib and print the ggplot2 spec that would do it."""
@@ -96,9 +105,16 @@ import io
 from matplotlib.image import imread as _imread
 
 class Builder:
+    """Collect-then-present canvas. Demo scripts call add/branch/end exactly as
+    before; nothing renders until end(), which opens ONE navigable window:
+      \u2192 / space / click / n ... forward        \u2190 / backspace / p ... back
+      home / end ....................... jump      q / escape ........ close
+    --save DIR still writes per-step PNGs + the final composite, headless."""
+
     def __init__(self, question, prefix):
         self.question, self.prefix = question, prefix
-        self.lines, self.trail, self.n = [], [], 0
+        self.lines, self.steps, self.n = [], [], 0
+        self.closing, self.closing_key = "", None
         self.saving = "--save" in sys.argv
         if self.saving:
             i = sys.argv.index("--save")
@@ -107,32 +123,12 @@ class Builder:
         self.headless = False
         if not self.saving:
             import matplotlib as _mpl
-            self.headless = _mpl.get_backend().lower().startswith("agg")
+            self.headless = _mpl.get_backend().lower().startswith(("agg", "template", "pdf", "svg", "ps"))
             if self.headless:
-                print("  [no display detected: fast-forwarding; use --save DIR to render]")
+                print("  [no display detected: printing the walkthrough; use --save DIR to render]")
         self.fig = None
 
-    def _advance(self, last=False):
-        """Wait for the presenter. GUI backends: any key/click IN the figure window
-        (keeps the event loop alive so the canvas actually repaints). Non-GUI
-        fallbacks: Enter in the terminal."""
-        if self.headless:
-            return
-        import matplotlib as _mpl
-        backend = _mpl.get_backend().lower()
-        gui_ok = self.fig is not None and hasattr(self.fig.canvas, "start_event_loop") \
-                 and not backend.startswith(("template", "agg", "pdf", "svg", "ps"))
-        if not gui_ok:
-            input("  [Enter to finish] " if last else "  [Enter] ")
-            return
-        while plt.fignum_exists(self.fig.number):
-            try:
-                r = self.fig.waitforbuttonpress(timeout=-1)
-            except Exception:
-                break
-            if r is not None:      # True = key, False = mouse; either advances
-                break
-
+    # ---------- collection ----------
     def _rasterize(self, p):
         """plotnine ggplot | mpl Figure | png path -> image array."""
         if isinstance(p, str):
@@ -144,9 +140,36 @@ class Builder:
         buf.seek(0)
         return _imread(buf)
 
+    def add(self, code_line, plot, note="", name=None, key=None):
+        """One step: append a spec line, store its rendering. `name` also writes
+        the bare plot PNG under out/<n> so the deck figures keep regenerating."""
+        self.n += 1
+        img = self._rasterize(plot)
+        if self.saving and name:
+            fig2, ax2 = plt.subplots(figsize=(img.shape[1] / 115, img.shape[0] / 115))
+            ax2.imshow(img); ax2.axis("off")
+            fig2.savefig(os.path.join(self.outdir, name), dpi=115, bbox_inches="tight", pad_inches=0)
+            plt.close(fig2)
+            print("saved", os.path.join(self.outdir, name))
+        self.lines.append(code_line)
+        self.steps.append(dict(img=img, lines=list(self.lines), note=note, key=key, n=self.n))
+        if self.headless and not self.saving:
+            print(f"  step {self.n}: {code_line}")
+            if note: print(f"          {note}")
+            if key:  print(f"        \u2691 {key}")
+        return self
+
+    def branch(self, code_line, plot, note="", name=None, key=None):
+        """A step that REPLACES the last line (an alternative, not an addition)."""
+        if self.lines: self.lines.pop()
+        return self.add(code_line, plot, note, name, key)
+
+    # ---------- presentation ----------
     def _layout(self):
         self.fig = plt.figure(figsize=(13.4, 7.2))
-        self.fig.canvas.manager.set_window_title(self.prefix) if hasattr(self.fig.canvas, "manager") else None
+        if hasattr(self.fig.canvas, "manager"):
+            try: self.fig.canvas.manager.set_window_title(self.prefix)
+            except Exception: pass
         gs = self.fig.add_gridspec(2, 2, width_ratios=[0.36, 0.64], height_ratios=[0.78, 0.22],
                                    left=0.02, right=0.99, top=0.90, bottom=0.02, hspace=0.06, wspace=0.03)
         self.ax_code = self.fig.add_subplot(gs[0, 0]); self.ax_code.axis("off")
@@ -157,74 +180,98 @@ class Builder:
         self.fig.suptitle(self.question, x=0.02, ha="left", fontsize=15,
                           fontweight="bold", color=INK)
 
-    def _redraw(self, img, note):
+    def _render(self, i):
+        """Draw state i. i == len(steps) is the closing view (last figure + closing text)."""
         if self.fig is None:
             self._layout()
+        last_i = len(self.steps)
+        closing_view = (i == last_i)
+        st = self.steps[min(i, last_i - 1)]
+        note = self.closing if closing_view else st["note"]
+        key = (self.closing_key or st["key"]) if closing_view else st["key"]
         self.ax_code.clear(); self.ax_code.axis("off")
-        for j, ln in enumerate(self.lines):
-            last = j == len(self.lines) - 1
-            self.ax_code.text(0.02, 0.96 - j * 0.075, ("▶ " if last else "  ") + ln,
+        for j, ln in enumerate(st["lines"]):
+            cur = (j == len(st["lines"]) - 1) and not closing_view
+            self.ax_code.text(0.02, 0.96 - j * 0.075, ("\u25b6 " if cur else "  ") + ln,
                               transform=self.ax_code.transAxes, family="monospace",
                               fontsize=11.5, va="top",
-                              color=ACCENT if last else INK,
-                              fontweight="bold" if last else "normal")
+                              color=ACCENT if cur else INK,
+                              fontweight="bold" if cur else "normal")
         self.ax_plot.clear(); self.ax_plot.axis("off")
-        self.ax_plot.imshow(img)
+        self.ax_plot.imshow(st["img"])
         if note:
             import textwrap
             self.ax_plot.set_title("\n".join(textwrap.wrap(note, 88)), fontsize=11,
                                    style="italic", color=MUTED, loc="left")
+        if key:
+            import textwrap as _tw
+            self.ax_plot.text(0.0, -0.03, "\u2691 KEY POINT  " + "\n".join(_tw.wrap(key, 92)),
+                              transform=self.ax_plot.transAxes, fontsize=9.8, va="top",
+                              fontweight="bold", color="white",
+                              bbox=dict(boxstyle="round,pad=0.45", fc=ACCENT, ec="none"))
         self.ax_trail.clear(); self.ax_trail.axis("off")
-        shown = self.trail[-6:]
-        for k, (im, lab) in enumerate(shown):
+        upto = self.steps[:min(i, last_i - 1) + 1]
+        shown = upto[-6:]
+        for k, stp in enumerate(shown):
             x0 = 0.005 + k * (1 / 6)
             axi = self.ax_trail.inset_axes([x0, 0.05, (1 / 6) - 0.012, 0.78])
-            axi.imshow(im); axi.axis("off")
-            axi.set_title(lab, fontsize=8, color=MUTED, pad=2)
+            axi.imshow(stp["img"]); axi.axis("off")
+            cur = stp is upto[-1]
+            axi.set_title(str(stp["n"]), fontsize=8,
+                          color=ACCENT if cur else MUTED, pad=2,
+                          fontweight="bold" if cur else "normal")
+            if cur:
+                for sp in axi.spines.values(): pass
+                axi.axis("on"); axi.set_xticks([]); axi.set_yticks([])
+                for sp in axi.spines.values():
+                    sp.set_edgecolor(ACCENT); sp.set_linewidth(2)
+        pos = "closing" if closing_view else f"step {st['n']}/{last_i}"
+        self._hint.set_text(f"{pos}   \u2190 back \u00b7 \u2192/space next \u00b7 home/end jump \u00b7 q close")
         self.fig.canvas.draw_idle()
 
-    def add(self, code_line, plot, note="", name=None):
-        """One step: append a spec line, show its rendering. `name` also writes
-        the bare plot PNG under out/<name> so the deck figures keep regenerating."""
-        self.n += 1
-        img = self._rasterize(plot)
-        if self.saving and name:
-            fig2, ax2 = plt.subplots(figsize=(img.shape[1] / 115, img.shape[0] / 115))
-            ax2.imshow(img); ax2.axis("off")
-            fig2.savefig(os.path.join(self.outdir, name), dpi=115, bbox_inches="tight", pad_inches=0)
-            plt.close(fig2)
-            print("saved", os.path.join(self.outdir, name))
-        self.lines.append(code_line)
-        if not self.saving and not self.headless:
-            self._redraw(img, note)
-            if getattr(self, "_hint", None): self._hint.set_text("any key \u2192 next")
-            plt.pause(0.15)
-            self._advance()
-        self.trail.append((img, f"{self.n}"))
-        if self.saving:
-            # keep the composite canvas current for the final export
-            self._redraw(img, note) if self.fig or True else None
-        return self
+    def _navigate(self):
+        i = 0
+        last = len(self.steps)           # index `last` = closing view
+        pending = {"k": None}
+        def on_key(ev):  pending["k"] = ev.key or ""
+        def on_click(ev): pending["k"] = "right"
+        self._render(i)
+        cid1 = self.fig.canvas.mpl_connect("key_press_event", on_key)
+        cid2 = self.fig.canvas.mpl_connect("button_press_event", on_click)
+        try: plt.show(block=False)
+        except Exception: pass
+        while True:
+            pending["k"] = None
+            while pending["k"] is None:
+                if not plt.fignum_exists(self.fig.number): return
+                plt.pause(0.06)
+            k = pending["k"]
+            if k in ("q", "escape"): break
+            elif k in ("right", " ", "space", "enter", "return", "n", "down"):
+                if i >= last: break
+                i += 1; self._render(i)
+            elif k in ("left", "backspace", "up", "p"):
+                i = max(0, i - 1); self._render(i)
+            elif k == "home":
+                i = 0; self._render(i)
+            elif k == "end":
+                i = last; self._render(i)
+        plt.close(self.fig)
 
-    def branch(self, code_line, plot, note="", name=None):
-        """A step that REPLACES the last line (an alternative, not an addition)."""
-        if self.lines: self.lines.pop()
-        return self.add(code_line, plot, note, name)
-
-    def end(self, closing):
-        img_note = closing
+    def end(self, closing, key=None):
+        self.closing, self.closing_key = closing, key
+        if not self.steps:
+            return
         if self.saving:
-            self._redraw(self.trail[-1][0], img_note)
+            self._render(len(self.steps))
             path = os.path.join(self.outdir, f"{self.prefix}_explained.png")
             self.fig.savefig(path, dpi=120)
             print("saved", path)
             plt.close(self.fig)
-        elif not self.headless:
-            self._redraw(self.trail[-1][0], img_note)
-            if getattr(self, "_hint", None): self._hint.set_text("any key \u2192 close")
-            plt.pause(0.15)
-            self._advance(last=True)
-            plt.close(self.fig)
+        elif self.headless:
+            print(f"  close: {closing}")
+        else:
+            self._navigate()
 
 
 def polar_figure(values, labels, theta, colors=None):

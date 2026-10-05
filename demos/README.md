@@ -1,3 +1,5 @@
+**Classroom launcher:** `python run.py` (terminal menu; in-canvas →/← navigation, repeat/next from the prompt) or `jupyter lab ClassRunner.ipynb` (inline built explanations).
+
 # CS 8630 FS2026 — Lecture Demos
 
 One runnable demo per unit, designed to be executed live alongside the unit deck
@@ -18,12 +20,6 @@ Requirements: numpy, pandas, matplotlib, networkx, scikit-learn (all standard).
 `--save DIR` renders PNGs headlessly (used to embed real output in the decks).
 Style is shared via `_style.py`. Colors match the deck design system.
 
-## Unit 1
-`make_stimulus` returns the positions of the controlled pair, and render marks exactly that pair — dots above the two bars (as Cleveland & McGill did) and exploded slices in the pie — so the ratio you constructed is the ratio the room judges. The true percentages come from a fixed five-step ladder (25, 35, 50, 67, 80), shuffled per round, instead of random uncontrolled ratios. And the error metric is now their actual published measure, log2(|judged% − true%| + ⅛), labeled as such on the plot.
-
-In class it runs exactly as the docstring says: bar round of five trials, one shouted consensus percentage typed in per trial, then the pie round on the same five true ratios, then the error plot appears with the room's own judgments — bars clustered low, pies scattered high. Ten minutes, and the hierarchy stops being a claim from 1984 and becomes something the class did to itself. The same-ratios-both-rounds design also gives you a clean talking point: any bar-vs-pie gap can't be blamed on harder trials.
-
-
 ## Reading-keyed libraries (Week 1 and beyond)
 
 - `cleveland/` — one script per chapter of both Cleveland texts (see its README)
@@ -31,6 +27,12 @@ In class it runs exactly as the docstring says: bar round of five trials, one sh
   interactive class experiments where the room generates the evidence (see its README)
 - `grammar/` — one script per section of Wickham 2010 + Wilkinson's core, built on
   plotnine so the code IS the grammar; Altair for the Vega-Lite dialect (see its README)
+- `flow/` — Unit 4c Part I: field three ways, the unsteady trap, a LIVE animated wind map
+  + sample data (data/) and the assignment starter template
+- `fractaltime/` — Unit 4c Part II: coastline/zoom, Hurst & burstiness, the cascade
+- `multidim/` — Unit 4: SPLOM+ranking, PCP order, projection knobs, hierarchy trades
+  as build-an-explanation canvases (needs scikit-learn, scipy, squarify — see its README)
+- `temporal/` — Unit 4b: gaps & banking, many-series & horizon build, period folds, change encodings
 - `wilkinson/` — Python examples for every key point of Wilkinson 2005: one script per
   pipeline stage, the varset algebra, and the Ch. 2 pie walk (see its README)
 
