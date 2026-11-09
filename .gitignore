@@ -1,3 +1,6 @@
+# Big Files
+demos/**.csv
+demos/**.zip
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
