@@ -13,7 +13,7 @@ so iteration after the first pass is cheap. Output: out_chicago/NN_*.png
 
 Deps: pandas, numpy, matplotlib (nothing else).
 """
-import argparse, os, sys, json
+import argparse, os, sys, json, zipfile, urllib.request, shutil
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -39,6 +39,41 @@ PROPERTY = {"THEFT","BURGLARY","MOTOR VEHICLE THEFT","ARSON","CRIMINAL DAMAGE","
 
 USECOLS = ["Date","Primary Type","Description","Location Description","Arrest","Domestic",
            "Beat","Ward","Community Area","Latitude","Longitude"]
+
+
+DROPBOX_URL = ("https://www.dropbox.com/scl/fi/5jpthactchw7dthbbn7ep/"
+               "Crimes_-_2001_to_Present.csv.zip?rlkey=gyz1sg897ransdakjyxs0ncyf&dl=1")  # dl=1 = direct download
+
+def ensure_csv(path):
+    """If the CSV isn't in the working directory, download the zip from Dropbox and extract it."""
+    if os.path.exists(path):
+        return path
+    zpath = path + ".zip"
+    if not os.path.exists(zpath):
+        print(f"[fetch] {path} not found \u2014 downloading from Dropbox (\u22480.5 GB zip)\u2026")
+        req = urllib.request.Request(DROPBOX_URL, headers={"User-Agent": "Mozilla/5.0 (chicago35)"})
+        with urllib.request.urlopen(req) as r, open(zpath + ".part", "wb") as f:
+            total = int(r.headers.get("Content-Length") or 0)
+            done = 0
+            while True:
+                buf = r.read(1 << 20)
+                if not buf: break
+                f.write(buf); done += len(buf)
+                pct = f" ({done/total*100:.0f}%)" if total else ""
+                print(f"  \u2026{done/1e6:,.0f} MB{pct}", end="\r")
+        os.replace(zpath + ".part", zpath)
+        print(f"\n[fetch] saved {zpath}")
+    print(f"[fetch] extracting {zpath} \u2026")
+    with zipfile.ZipFile(zpath) as z:
+        members = [m for m in z.namelist()
+                   if m.lower().endswith(".csv") and not m.startswith("__MACOSX")]
+        if not members:
+            sys.exit(f"[fetch] no .csv inside {zpath} \u2014 contents: {z.namelist()[:5]}")
+        member = max(members, key=lambda m: z.getinfo(m).file_size)
+        with z.open(member) as src, open(path, "wb") as dst:
+            shutil.copyfileobj(src, dst, 1 << 20)
+    print(f"[fetch] extracted \u2192 {path} ({os.path.getsize(path)/1e9:.2f} GB); zip kept for reuse")
+    return path
 
 # ----------------------------------------------------------------------------- pass 1
 def build_cache(csv_path, cache_path):
@@ -897,13 +932,15 @@ def f35(C):
 def main():
     global OUT
     ap = argparse.ArgumentParser()
-    ap.add_argument("--csv", required=True)
+    ap.add_argument("--csv", default="Crimes_-_2001_to_Present.csv",
+                help="path to the CSV; auto-downloaded from Dropbox if absent")
     ap.add_argument("--cache", default="chicago_cache.npz")
     ap.add_argument("--out", default="out_chicago")
     ap.add_argument("--only", default="")
     ap.add_argument("--rebuild", action="store_true")
     a = ap.parse_args()
     OUT = a.out
+    ensure_csv(a.csv)
     if a.rebuild or not os.path.exists(a.cache):
         build_cache(a.csv, a.cache)
     C = load_cache(a.cache)
